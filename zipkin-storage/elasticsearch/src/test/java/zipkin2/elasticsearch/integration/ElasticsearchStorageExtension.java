@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 The OpenZipkin Authors
+ * Copyright 2015-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,11 +14,21 @@
 package zipkin2.elasticsearch.integration;
 
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.ClientRequestContext;
+import com.linecorp.armeria.client.DecoratingHttpClientFunction;
+import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.SimpleDecoratingHttpClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.client.logging.LoggingClient;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.logging.LogLevel;
+import io.netty.util.AsciiString;
 import java.io.IOException;
+import java.util.Map;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -113,7 +123,21 @@ class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallba
         .requestLogLevel(LogLevel.INFO)
         .successfulResponseLogLevel(LogLevel.INFO).build(c));
     }
+    builder.decorator((delegate, ctx, req) -> {
+      // ES emits warning headers if api calls rely on deprecated features, use a decorator to
+      // detect these and make our IT fail early
+      final HttpResponse response = delegate.execute(ctx, req);
+      final AggregatedHttpResponse aggregatedHttpResponse = response.aggregate().join();
+      for (Map.Entry<AsciiString, String> header : aggregatedHttpResponse.headers()) {
+        if ("warning".equalsIgnoreCase(header.getKey().toString())) {
+          throw new IllegalArgumentException("Detected usage of deprecated API for request "
+            + req.toString() + ":\n" + header.getValue());
+        }
+      }
+      return response;
+    });
     WebClient client = builder.build();
+
     return ElasticsearchStorage.newBuilder(() -> client)
       .index("zipkin-test")
       .flushOnWrites(true);
