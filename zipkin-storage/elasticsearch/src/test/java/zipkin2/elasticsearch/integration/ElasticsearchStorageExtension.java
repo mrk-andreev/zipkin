@@ -14,21 +14,15 @@
 package zipkin2.elasticsearch.integration;
 
 import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.DecoratingHttpClientFunction;
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.SimpleDecoratingHttpClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.client.logging.LoggingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.logging.LogLevel;
 import io.netty.util.AsciiString;
 import java.io.IOException;
 import java.util.Map;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
