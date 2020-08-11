@@ -13,16 +13,24 @@
  */
 package zipkin2.elasticsearch.integration;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.client.logging.LoggingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.logging.LogLevel;
 import io.netty.util.AsciiString;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -35,8 +43,12 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import zipkin2.CheckResult;
 import zipkin2.elasticsearch.ElasticsearchStorage;
 import zipkin2.elasticsearch.ElasticsearchStorage.Builder;
+import zipkin2.elasticsearch.JsonReadersTest;
+import zipkin2.elasticsearch.internal.JsonSerializers;
+import zipkin2.elasticsearch.internal.client.HttpCall;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static zipkin2.elasticsearch.internal.JsonSerializers.JSON_FACTORY;
 
 class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallback {
   static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchStorageExtension.class);
@@ -75,6 +87,7 @@ class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallba
 
     try {
       tryToInitializeSession();
+      checkForDeprecatedFeatures();
     } catch (RuntimeException | IOException | Error e) {
       if (container == null) throw e;
       LOGGER.warn("Couldn't connect to docker image " + image + ": " + e.getMessage(), e);
@@ -93,6 +106,29 @@ class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallba
     if (container != null) {
       LOGGER.info("Stopping docker image " + image);
       container.stop();
+    }
+  }
+
+  void checkForDeprecatedFeatures() {
+    String deprecationCheckResult = null;
+    try {
+      WebClient webClient = WebClient.builder(baseUrl()).factory(ClientFactory.builder()
+        .useHttp2Preface(false).build()).build();
+      final CompletableFuture<AggregatedHttpResponse> responseCompletableFuture = webClient.execute(
+        HttpRequest.of(RequestHeaders.of(HttpMethod.GET, "/_migration/deprecations"))).aggregate();
+      final String content = responseCompletableFuture.join().content().toStringAscii();
+      final JsonParser parser = JSON_FACTORY.createParser(content);
+      final Iterator<Object[]> contents = parser.readValuesAs(Object[].class);
+      if (contents.hasNext()) {
+        // deprecated features were detected
+        deprecationCheckResult = content;
+      }
+    } catch (Exception e) {
+      // somehow the deprecation check failed, log as warning but don't block IT
+      LOGGER.error("An exception occurred while checking for deprecated features", e);
+    }
+    if (deprecationCheckResult != null) {
+      throw new IllegalArgumentException("Deprecation warnings were detected :\n" + deprecationCheckResult);
     }
   }
 
@@ -119,7 +155,7 @@ class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallba
     }
     builder.decorator((delegate, ctx, req) -> {
       // ES emits warning headers if api calls rely on deprecated features, use a decorator to
-      // detect these and make our IT fail early
+      // detect these in the response header and make our IT fail early
       final HttpResponse response = delegate.execute(ctx, req);
       final AggregatedHttpResponse aggregatedHttpResponse = response.aggregate().join();
       for (Map.Entry<AsciiString, String> header : aggregatedHttpResponse.headers()) {
@@ -131,7 +167,6 @@ class ElasticsearchStorageExtension implements BeforeAllCallback, AfterAllCallba
       return response;
     });
     WebClient client = builder.build();
-
     return ElasticsearchStorage.newBuilder(() -> client)
       .index("zipkin-test")
       .flushOnWrites(true);
