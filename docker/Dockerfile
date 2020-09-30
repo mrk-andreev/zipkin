@@ -35,11 +35,6 @@ RUN ./mvnw -q --batch-mode -DskipTests --also-make -pl zipkin-server install
 RUN mkdir -p /zipkin && cp zipkin-server/target/zipkin-server-*-exec.jar /zipkin && cd /zipkin && jar xf *.jar && rm *.jar
 RUN mkdir -p /zipkin-slim && cp zipkin-server/target/zipkin-server-*-slim.jar /zipkin-slim && cd /zipkin-slim && jar xf *.jar && rm *.jar
 
-FROM maven:3-openjdk-14-slim as zipkin-builder
-
-COPY --from=built /root/.m2 /root/.m2
-COPY --from=built /root/.npm /root/.npm
-
 #####
 # zipkin-ui - An image containing the Zipkin web frontend only, served by NGINX
 #####

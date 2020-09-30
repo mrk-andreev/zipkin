@@ -15,14 +15,34 @@
 # Refreshing the builder image to remove stale dependencies just involves building zipkin-server on
 # an empty image.
 
-FROM maven:3-openjdk-14-slim
+# TODO: move to alpine when supported https://github.com/openzipkin/zipkin/issues/3218
+FROM azul/zulu-openjdk:14 as install
 
-COPY . /code/
+WORKDIR /install
 
-# Unset MAVEN_CONFIG until we don't depend on the maven image which conflicts with the Takari env
-ENV MAVEN_CONFIG=
+# Use the same command as we suggest in zipkin-server/README.md to hydrate the Maven and NPM cache
+COPY . /install/.
+RUN ./mvnw -q --batch-mode -DskipTests --also-make -pl zipkin-server package
 
-# Use the same command as we suggest in zipkin-server/README.md to hydrate the maven cache
-RUN cd /code && \
-    ./mvnw -q --batch-mode -DskipTests --also-make -pl zipkin-server package && \
-    cd / && rm -rf /code
+# TODO: move to alpine when supported https://github.com/openzipkin/zipkin/issues/3218
+FROM azul/zulu-openjdk:14
+MAINTAINER OpenZipkin "https://zipkin.io/"
+
+# # BusyBux built-in tar doesn't support --strip=1
+# RUN apk add --update --no-cache tar
+
+# temporarily install wget until we switch to alpine
+RUN apt-get update && apt-get install -y wget
+
+# Use latest stable release here.
+ARG MAVEN_VERSION=3.6.3
+WORKDIR /usr/local/maven
+RUN APACHE_MIRROR=$(wget -qO- https://www.apache.org/dyn/closer.cgi\?as_json\=1 | sed -n '/preferred/s/.*"\(.*\)"/\1/gp') && \
+    wget -qO- $APACHE_MIRROR/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xz --strip=1 && \
+    ln -s /usr/local/maven/bin/mvn /usr/local/bin/mvn
+
+WORKDIR /
+
+# Copy Maven cache hydrated earlier
+COPY --from=install /root/.m2 /root/.m2
+COPY --from=install /root/.npm /root/.npm
