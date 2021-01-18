@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipkin
+  labels:
+    app: zipkin
+spec:
+  replicas: {{.Values.deployment.replicas}}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: zipkin
+  template:
+    metadata:
+      labels:
+        app: zipkin
+    spec:
+      restartPolicy: {{.Values.deployment.restartPolicy }}
+      containers:
+        - name: zipkin
+          image: {{.Values.deployment.repository}}:{{.Values.deployment.tag}}
+          imagePullPolicy: {{.Values.deployment.imagePullPolicy}}
+          env:
+            - name: POSTGRES_HOST
+              value: {{.Values.db.host}}
+            - name: POSTGRES_USER
+              value: {{.Values.db.user}}
+            - name: POSTGRES_PASS
+              value: {{.Values.db.password}}
+            - name: POSTGRES_SCHEMA
+              value: {{.Values.db.schema}}
+            - name: POSTGRES_DB
+              value: {{.Values.db.database}}
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: {{.Values.db.maxConnections | quote }}
+            - name: POSTGRES_USE_SSL
+              value: {{.Values.db.useSsl | quote}}
+          ports:
+            - containerPort: 9411
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin
+spec:
+  selector:
+    app: zipkin
+  ports:
+    - protocol: TCP
+      port: 9411
+      targetPort: 9411

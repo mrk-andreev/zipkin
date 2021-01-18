@@ -1,0 +1,18 @@
+deployment:
+  replicas: 1
+  repository: "markandreev/zipkin"
+  tag: "latest"
+  imagePullPolicy: "Always"
+  restartPolicy: "Always"
+  resources:
+    requests:
+      memory: "1024Mi"
+
+db:
+  host: "localhost"
+  user: "postgres"
+  password: "postgres"
+  schema: "public"
+  database: "postgres"
+  maxConnections: "10"
+  useSsl: "false"
