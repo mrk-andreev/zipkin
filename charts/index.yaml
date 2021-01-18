@@ -9,5 +9,5 @@ entries:
       sources:
         - https://github.com/mrk-andreev/zipkin/tree/1232-postgres
       urls:
-        - http://mrkandreev.name/zipkin/charts/chart-zipkin-1.0.0.tgz
+        - https://mrkandreev.name/zipkin/charts/chart-zipkin-1.0.0.tgz
       version: 1.0.0
