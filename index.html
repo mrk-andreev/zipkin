@@ -6,5 +6,33 @@
 </head>
 <body>
 
+<h1>How to install helm chart with zipkin</h1>
+
+<ul>
+  <li>Zipkin for postgres implementation
+    <a href="https://github.com/mrk-andreev/zipkin/tree/1232-postgres">https://github.com/mrk-andreev/zipkin/tree/1232-postgres</a>
+  </li>
+  <li>Chart source <a href="https://github.com/mrk-andreev/zipkin/tree/1232-postgres-chart">https://github.com/mrk-andreev/zipkin/tree/1232-postgres-chart</a>
+  </li>
+</ul>
+
+<pre>
+  kubectl create namespace zipkin
+  helm repo add zipkin https://mrkandreev.name/zipkin/charts
+  helm repo update
+
+  helm upgrade --install \
+    zipkin zipkin/zipkin \
+    --namespace zipkin \
+    --version v1.0.0 \
+    --set db.host=localhost \
+    --set db.user=postgres \
+    --set db.password=postgres \
+    --set db.schema=public \
+    --set db.database=postgres \
+    --set db.maxConnections=10 \
+    --set db.useSsl=false
+</pre>
+
 </body>
 </html>
