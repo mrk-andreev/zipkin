@@ -3,7 +3,7 @@ entries:
   zipkin:
     - created: 2021-01-18T14:48:20.499814565-00:00
       description: A Helm chart for zipkin
-      digest: 99c76e403d752c84ead610644d4b1c2f2b453a74b921f422b9dcb8a7c8b559cd
+      digest: d6a900f5408bc2fb7204b188438a575a4a5f7d90315deefd0bde918e1fd89ac0
       home: https://mrkandreev.name/zipkin
       name: alpine
       sources:
