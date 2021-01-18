@@ -2,10 +2,10 @@ apiVersion: v1
 entries:
   zipkin:
     - created: 2021-01-18T14:48:20.499814565-00:00
+      name: zipkin
       description: A Helm chart for zipkin
       digest: d6a900f5408bc2fb7204b188438a575a4a5f7d90315deefd0bde918e1fd89ac0
       home: https://mrkandreev.name/zipkin
-      name: alpine
       sources:
         - https://github.com/mrk-andreev/zipkin/tree/1232-postgres
       urls:
